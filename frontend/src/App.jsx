@@ -11,6 +11,7 @@ import Register from './pages/Register';
 import VerifyEmail from './pages/VerifyEmail';
 import Home from './pages/Home';
 import ChatRoom from './pages/ChatRoom';
+import NarChatbot from './components/NarChatbot';
 
 const ProtectedRoute = ({ children, allowGuest = false }) => {
   const { token, loading } = useAuth();
@@ -64,6 +65,7 @@ const App = () => {
                   }
                 />
               </Routes>
+              <NarChatbot />
             </div>
           </SocketProvider>
         </AuthProvider>

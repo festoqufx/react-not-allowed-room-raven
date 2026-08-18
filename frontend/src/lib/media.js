@@ -49,7 +49,26 @@ const audioConstraint = ({ deviceId } = {}) => {
   };
 };
 
-export async function getUserMediaWithFallback({
+let mediaChain = Promise.resolve();
+
+const withMediaLock = (task) => {
+  const run = mediaChain.then(task, task);
+  mediaChain = run.then(() => undefined, () => undefined);
+  return run;
+};
+
+const hasLiveTrack = (stream, kind) => (
+  Boolean(stream?.getTracks?.().some((track) => track.kind === kind && track.readyState === 'live'))
+);
+
+const isUsableStream = (stream, { video = true, audio = true } = {}) => {
+  if (!stream) return false;
+  if (video && !hasLiveTrack(stream, 'video')) return false;
+  if (audio && !hasLiveTrack(stream, 'audio')) return false;
+  return true;
+};
+
+async function requestUserMedia({
   video = true,
   audio = true,
   videoDeviceId = '',
@@ -70,12 +89,16 @@ export async function getUserMediaWithFallback({
       audio: audioConstraint({ deviceId: audioDeviceId }),
     });
     attempts.push({ video: true, audio: true });
+    attempts.push({
+      video: videoConstraint({ deviceId: videoDeviceId, facingMode }),
+      audio: true,
+    });
+    attempts.push({ video: true, audio: audioConstraint({ deviceId: audioDeviceId }) });
+    attempts.push({ video: true, audio: false });
   } else if (video) {
     attempts.push({ video: videoConstraint({ deviceId: videoDeviceId, facingMode }), audio: false });
     attempts.push({ video: true, audio: false });
-  }
-
-  if (audio) {
+  } else if (audio) {
     attempts.push({ video: false, audio: audioConstraint({ deviceId: audioDeviceId }) });
     attempts.push({ video: false, audio: true });
   }
@@ -90,6 +113,89 @@ export async function getUserMediaWithFallback({
   }
 
   throw lastError || new Error('Could not start the camera.');
+}
+
+export function getUserMediaWithFallback(options = {}) {
+  return withMediaLock(() => requestUserMedia(options));
+}
+
+const mediaSession = {
+  refs: 0,
+  stream: null,
+  acquiring: null,
+  releaseTimer: null,
+};
+
+const RELEASE_DELAY_MS = 450;
+
+const assignSessionStream = (stream) => {
+  if (mediaSession.stream && mediaSession.stream !== stream) {
+    stopStream(mediaSession.stream);
+  }
+  mediaSession.stream = stream;
+  return stream;
+};
+
+export async function acquireCallMedia(options = {}) {
+  const { replace = false, ...mediaOptions } = options;
+  if (!replace) mediaSession.refs += 1;
+
+  if (mediaSession.releaseTimer) {
+    window.clearTimeout(mediaSession.releaseTimer);
+    mediaSession.releaseTimer = null;
+  }
+
+  if (!replace && isUsableStream(mediaSession.stream, mediaOptions) && !mediaSession.acquiring) {
+    return mediaSession.stream;
+  }
+
+  if (!replace && mediaSession.acquiring) {
+    return mediaSession.acquiring;
+  }
+
+  mediaSession.acquiring = withMediaLock(async () => {
+    if (!replace && isUsableStream(mediaSession.stream, mediaOptions)) {
+      return mediaSession.stream;
+    }
+
+    try {
+      const stream = await requestUserMedia(mediaOptions);
+      if (mediaSession.refs <= 0) {
+        stopStream(stream);
+        return stream;
+      }
+      return assignSessionStream(stream);
+    } catch (error) {
+      if (!replace) mediaSession.refs = Math.max(0, mediaSession.refs - 1);
+      throw error;
+    }
+  }).finally(() => {
+    mediaSession.acquiring = null;
+  });
+
+  return mediaSession.acquiring;
+}
+
+export function releaseCallMedia({ immediate = false } = {}) {
+  mediaSession.refs = Math.max(0, mediaSession.refs - 1);
+
+  const finish = () => {
+    if (mediaSession.refs > 0) return;
+    stopStream(mediaSession.stream);
+    mediaSession.stream = null;
+  };
+
+  if (mediaSession.releaseTimer) {
+    window.clearTimeout(mediaSession.releaseTimer);
+    mediaSession.releaseTimer = null;
+  }
+
+  if (immediate) {
+    finish();
+    return;
+  }
+
+  mediaSession.releaseTimer = window.setTimeout(finish, RELEASE_DELAY_MS);
 }
 
 export const stopStream = (stream) => {
@@ -168,8 +274,10 @@ export const attachStreamToVideo = (videoEl, stream, { muted = true } = {}) => {
   return new Promise((resolve) => {
     const onReady = () => {
       videoEl.removeEventListener('loadedmetadata', onReady);
+      videoEl.removeEventListener('canplay', onReady);
       resolve(play());
     };
     videoEl.addEventListener('loadedmetadata', onReady);
+    videoEl.addEventListener('canplay', onReady);
   });
 };

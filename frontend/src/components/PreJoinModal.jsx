@@ -3,8 +3,8 @@ import { motion } from 'framer-motion';
 import { Mic, MicOff, Video, VideoOff, Volume2, RefreshCw, AlertTriangle } from 'lucide-react';
 import MediaVideo from './MediaVideo';
 import {
-  getUserMediaWithFallback,
-  stopStream,
+  acquireCallMedia,
+  releaseCallMedia,
   getMediaErrorMessage,
   canUseMediaDevices,
 } from '../lib/media';
@@ -36,9 +36,10 @@ const PreJoinModal = ({ onJoin, userName }) => {
         throw Object.assign(new Error('CAMERA_UNSUPPORTED'), { name: 'CAMERA_UNSUPPORTED' });
       }
 
-      const newStream = await getUserMediaWithFallback({
+      const newStream = await acquireCallMedia({
         video: nextVideoOn,
         audio: nextMicOn || nextVideoOn,
+        replace: Boolean(streamRef.current),
       });
 
       if (!nextMicOn) {
@@ -52,14 +53,12 @@ const PreJoinModal = ({ onJoin, userName }) => {
         });
       }
 
-      stopStream(streamRef.current);
       streamRef.current = newStream;
       setStream(newStream);
       setMediaLoading(false);
       return newStream;
     } catch (err) {
       console.error('Error accessing media devices:', err);
-      stopStream(streamRef.current);
       streamRef.current = null;
       setStream(null);
       setMediaLoading(false);
@@ -72,8 +71,7 @@ const PreJoinModal = ({ onJoin, userName }) => {
     let cancelled = false;
 
     const boot = async () => {
-      const preview = await startPreview(true, true);
-      if (cancelled && preview) stopStream(preview);
+      await startPreview(true, true);
       if (cancelled) {
         streamRef.current = null;
       }
@@ -83,7 +81,7 @@ const PreJoinModal = ({ onJoin, userName }) => {
 
     return () => {
       cancelled = true;
-      stopStream(streamRef.current);
+      releaseCallMedia();
       streamRef.current = null;
     };
   }, [startPreview]);
@@ -112,7 +110,7 @@ const PreJoinModal = ({ onJoin, userName }) => {
   }, [videoOn, startPreview]);
 
   const handleJoin = () => {
-    stopStream(streamRef.current);
+    releaseCallMedia({ immediate: true });
     streamRef.current = null;
     onJoin({ micOn, videoOn });
   };

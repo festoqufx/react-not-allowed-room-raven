@@ -27,6 +27,7 @@ import { isDuplicateRequest } from '../lib/preventDuplicateRequests';
 import { apiUrl } from '../lib/config';
 import { useTheme } from '../context/ThemeContext';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { NAR_BOT_ID, NAR_BOT_NAME, narWelcomeMessage } from '../lib/narBot';
 import './ChatRoom.css';
 
 const ChatRoom = () => {
@@ -65,8 +66,7 @@ const ChatRoom = () => {
   const [activeCall, setActiveCall] = useState(null); // { participants_count }
   const [isSocketJoined, setIsSocketJoined] = useState(false);
   const [resolvedRoomId, setResolvedRoomId] = useState(null);
-  const [initialSettings, setInitialSettings] = useState({ micOn: true, videoOn: true });
-  const [hasShownCallLobby, setHasShownCallLobby] = useState(false);
+  const [initialSettings] = useState({ micOn: true, videoOn: true });
   const [notification, setNotification] = useState(null);
 
   const messagesEndRef = useRef(null);
@@ -220,12 +220,6 @@ const ChatRoom = () => {
         if (response?.success) {
           console.log(`✅ [Socket] Successfully joined room_${roomIdInt}`);
           setIsSocketJoined(true);
-          if (!hasShownCallLobby) {
-            setHasShownCallLobby(true);
-            setInitialSettings({ micOn: true, videoOn: true });
-            setCallType('video');
-            setIsInCall(true);
-          }
         }
       });
     };
@@ -237,7 +231,7 @@ const ChatRoom = () => {
     return () => {
       socket.off('connect', initializeRoom);
     };
-  }, [socket, id, guestId, token, guestName, showGuestPrompt, showPasswordPrompt, hasShownCallLobby, isSocketJoined]);
+  }, [socket, id, guestId, token, guestName, showGuestPrompt, showPasswordPrompt, isSocketJoined]);
 
   // 4. Socket Events Effect
   useEffect(() => {
@@ -293,11 +287,12 @@ const ChatRoom = () => {
       console.log("☎️ [Socket] Call in progress notification:", data);
       setActiveCall(data);
       
-      // Auto-join only if we are specifically authorized and not already in
-      if (!isInCall && !showGuestPrompt && !showPasswordPrompt && hasShownCallLobby) {
-        console.log("🚀 [Socket] Automatically joining existing call...");
-        setCallType('video');
-        setIsInCall(true);
+      if (!isInCall && !showGuestPrompt && !showPasswordPrompt) {
+        setNotification({
+          message: 'A live call is in progress. Tap Join or the camera icon to enter.',
+          type: 'join'
+        });
+        window.setTimeout(() => setNotification(null), 3200);
       }
     };
 
@@ -325,7 +320,22 @@ const ChatRoom = () => {
       socket.off('call_in_progress', onCallInProgress);
       socket.off('call_ended', onCallEnded);
     };
-  }, [socket, id, resolvedRoomId, isSocketJoined, isInCall, user, guestId, navigate]);
+  }, [socket, id, resolvedRoomId, isSocketJoined, isInCall, user, guestId, navigate, showGuestPrompt, showPasswordPrompt]);
+
+  useEffect(() => {
+    if (!isSocketJoined || isCheckingRoomAccess) return;
+    setMessages((prev) => {
+      if (prev.length > 0 || prev.some((msg) => msg.id === 'nar-welcome')) return prev;
+      return [{
+        id: 'nar-welcome',
+        user_name: NAR_BOT_NAME,
+        user_tempeorary_id: NAR_BOT_ID,
+        is_bot: true,
+        message: narWelcomeMessage(user?.name || guestName),
+        timestamp: new Date().toISOString(),
+      }];
+    });
+  }, [isSocketJoined, isCheckingRoomAccess, user, guestName]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -433,8 +443,10 @@ const ChatRoom = () => {
     }, 300);
   };
 
-  const isOwnMessage = (msg) => (token && user && msg.user_id === user.id) ||
-    (!token && guestId && msg.user_tempeorary_id === guestId);
+  const isBotMessage = (msg) => Boolean(msg?.is_bot) || msg?.user_tempeorary_id === NAR_BOT_ID;
+
+  const isOwnMessage = (msg) => !isBotMessage(msg) && ((token && user && msg.user_id === user.id) ||
+    (!token && guestId && msg.user_tempeorary_id === guestId));
 
   const toggleMessageSelection = (messageId) => {
     if (!messageId) return;
@@ -664,7 +676,7 @@ const ChatRoom = () => {
               <Hash size={26} />
             </div>
             <h2>No messages yet</h2>
-            <p>Start the conversation when you are ready.</p>
+            <p>Start the conversation, mention @nar for a reply, or tap the NAR bubble.</p>
           </div>
         ) : (
         <AnimatePresence>
@@ -677,10 +689,10 @@ const ChatRoom = () => {
                 key={`${msg.id || 'msg'}-${index}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`message-bubble-wrapper ${ownMessage ? 'own' : 'other'} ${isSelected ? 'selected' : ''}`}
+                className={`message-bubble-wrapper ${ownMessage ? 'own' : 'other'} ${isBotMessage(msg) ? 'bot' : ''} ${isSelected ? 'selected' : ''}`}
               >
                 <div className="message-meta" style={{ textAlign: ownMessage ? 'right' : 'left' }}>
-                  {msg.user_name} • {new Date(msg.timestamp || msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {msg.user_name}{isBotMessage(msg) ? ' · Bot' : ''} • {new Date(msg.timestamp || msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
                 <div className="message-row">
                   {ownMessage && msg.id && (
@@ -693,7 +705,7 @@ const ChatRoom = () => {
                       <CheckSquare size={15} />
                     </button>
                   )}
-                <div className={`glass message-bubble ${ownMessage ? 'own' : 'other'}`}>
+                <div className={`glass message-bubble ${ownMessage ? 'own' : 'other'} ${isBotMessage(msg) ? 'bot' : ''}`}>
                   {msg.message}
                 </div>
                 </div>
@@ -731,7 +743,7 @@ const ChatRoom = () => {
           <input
             type="text"
             className="message-input"
-            placeholder="Type a message..."
+            placeholder="Type a message… mention @nar for a reply"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onFocus={() => setShowEmojiPicker(false)}

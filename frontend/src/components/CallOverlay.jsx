@@ -11,6 +11,8 @@ import { useTheme } from '../context/ThemeContext';
 import MediaVideo from './MediaVideo';
 import {
   getUserMediaWithFallback,
+  acquireCallMedia,
+  releaseCallMedia,
   listMediaDevices,
   stopStream,
   replaceStreamTrack,
@@ -117,19 +119,18 @@ const CallOverlay = ({
     setMediaLoading(true);
     setMediaError('');
 
-    const stream = await getUserMediaWithFallback({
+    const stream = await acquireCallMedia({
       video: true,
       audio: true,
       videoDeviceId,
       audioDeviceId,
       facingMode,
+      replace: Boolean(localStreamRef.current),
     });
 
     applyInitialTrackState(stream);
-    const previous = localStreamRef.current;
     localStreamRef.current = stream;
     setLocalStream(stream);
-    if (previous && previous !== stream) stopStream(previous);
 
     stream.getVideoTracks().forEach((track) => {
       track.onended = () => {
@@ -145,6 +146,10 @@ const CallOverlay = ({
       videoId: stream.getVideoTracks()[0]?.getSettings?.().deviceId || prev.videoId,
       audioId: stream.getAudioTracks()[0]?.getSettings?.().deviceId || prev.audioId,
     }));
+    if (!stream.getVideoTracks().some((track) => track.readyState === 'live')) {
+      setIsCameraOff(true);
+      setMediaError('Camera did not start. Microphone is ready — retry camera or choose another device.');
+    }
     setMediaLoading(false);
     return stream;
   }, [refreshDevices]);
@@ -165,10 +170,7 @@ const CallOverlay = ({
 
       try {
         await refreshDevices();
-        const stream = await startMediaRef.current();
-        if (cancelled) {
-          stopStream(stream);
-        }
+        await startMediaRef.current();
       } catch (error) {
         if (!cancelled) {
           setMediaLoading(false);
@@ -184,9 +186,8 @@ const CallOverlay = ({
       cancelled = true;
       navigator.mediaDevices?.removeEventListener?.('devicechange', refreshDevices);
       stopStream(screenStreamRef.current);
-      stopStream(localStreamRef.current);
-      localStreamRef.current = null;
       screenStreamRef.current = null;
+      releaseCallMedia();
     };
   }, [refreshDevices]);
 
@@ -656,10 +657,11 @@ const CallOverlay = ({
 
   const handleLeave = () => {
     stopStream(screenStreamRef.current);
-    stopStream(localStreamRef.current);
-    localStreamRef.current = null;
     screenStreamRef.current = null;
     setScreenStream(null);
+    releaseCallMedia({ immediate: true });
+    localStreamRef.current = null;
+    setLocalStream(null);
     if (onEndCall) onEndCall();
     else onLeave();
   };
@@ -864,7 +866,7 @@ const CallOverlay = ({
               <button className="join-btn" onClick={() => setIsJoined(true)}>
                 Join Meeting
               </button>
-              <button className="cancel-btn" onClick={onLeave}>Back</button>
+              <button className="cancel-btn" onClick={handleLeave}>Back</button>
             </div>
             <p className="lobby-hint">Shortcuts: M mute, V camera{devices.video.length > 1 ? ', F flip camera' : ''}</p>
           </div>

@@ -1,4 +1,5 @@
 import { pool } from "../config/postgress_db.js";
+import { getNarReply, NAR_BOT_ID, NAR_BOT_NAME, shouldNarReplyInRoom } from "../lib/narBot.js";
 
 const activeCalls = new Map(); // Map<room_id, Set<socket_id>>
 
@@ -170,6 +171,31 @@ export const registerSocketHandlers = (io, socket) => {
                 user_tempeorary_id: pGuestId,
                 timestamp: now
             });
+
+            if (shouldNarReplyInRoom(message)) {
+                const botText = getNarReply(message, pName);
+                setTimeout(async () => {
+                    try {
+                        const botNow = new Date().toISOString();
+                        const botInsert = await pool.query(
+                            "INSERT INTO room_messages (room_id, user_id, user_tempeorary_id, message, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+                            [cleanRoomId, null, NAR_BOT_ID, botText, botNow]
+                        );
+                        io.to(`room_${cleanRoomId}`).emit('receive_message', {
+                            id: botInsert.rows[0].id,
+                            room_id: cleanRoomId,
+                            message: botText,
+                            user_name: NAR_BOT_NAME,
+                            user_id: null,
+                            user_tempeorary_id: NAR_BOT_ID,
+                            is_bot: true,
+                            timestamp: botNow
+                        });
+                    } catch (botErr) {
+                        console.error('Socket bot reply error:', botErr);
+                    }
+                }, 450);
+            }
         } catch (err) {
             console.error('Socket message error:', err);
         }

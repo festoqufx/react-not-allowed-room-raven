@@ -91,6 +91,10 @@
   color: var(--text-primary);
 }
 
+.message-bubble.bot {
+  border: 1px dashed var(--glass-border);
+}
+
 .messages-empty-icon {
   width: 54px;
   height: 54px;

@@ -51,7 +51,12 @@ export const GetMessages = async (req, res) => {
         
         const result = await pool.query(
             `SELECT m.*, 
-                    COALESCE(p.name, u.name, 'Unknown') as user_name 
+                    COALESCE(
+                      p.name,
+                      u.name,
+                      CASE WHEN m.user_tempeorary_id = '00000000-0000-4000-8000-0000000000aa' THEN 'NAR' ELSE 'Unknown' END
+                    ) as user_name,
+                    (m.user_tempeorary_id = '00000000-0000-4000-8000-0000000000aa') as is_bot
              FROM room_messages m 
              LEFT JOIN user_profile u ON m.user_id = u.id 
              LEFT JOIN participants p ON (m.user_id = p.user_id OR m.user_tempeorary_id = p.user_tempeorary_id) AND m.room_id = p.room_id
