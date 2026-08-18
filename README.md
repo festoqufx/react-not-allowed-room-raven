@@ -71,7 +71,7 @@ This repo is a monorepo. The root `vercel.json` builds `frontend` from the repos
 
 1. Import the repository in Vercel.
 2. Confirm Node.js **24.x** (from `engines` / `.nvmrc`).
-3. Add environment variable **`VITE_BACKEND_URL`** (your public API origin, no trailing slash).
+3. Add environment variable **`VITE_BACKEND_URL`** (your public API origin, no trailing slash). Camera and rooms will not start without this.
 4. Deploy.
 
 If you prefer setting **Root Directory** to `frontend` in the Vercel dashboard, that also works. Use the same `VITE_BACKEND_URL` variable.
@@ -79,8 +79,8 @@ If you prefer setting **Root Directory** to `frontend` in the Vercel dashboard, 
 The API still needs `FRONT_CORS` to include your Vercel origin, for example:
 
 ```
-FRONT_CORS=https://your-app.vercel.app
-FRONTEND_URL=https://your-app.vercel.app
+FRONT_CORS=https://react-not-allowed-room-raven.vercel.app
+FRONTEND_URL=https://react-not-allowed-room-raven.vercel.app
 ```
 
 Do not proxy the API through Vercel rewrites. The client calls `VITE_BACKEND_URL` directly (CORS is handled by the server).

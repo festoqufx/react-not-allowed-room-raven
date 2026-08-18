@@ -87,12 +87,43 @@ jobs:
     needs: verify-server
 
     steps:
+      # Host/user/port may be repository Variables or Secrets. An empty
+      # secrets.SERVER_PORT would override ssh-action's default 22 and
+      # secrets.SERVER_IP is often unset when the IP was saved as a Variable.
+      - name: Resolve SSH settings
+        env:
+          RAW_HOST: ${{ vars.SERVER_IP || secrets.SERVER_IP }}
+          RAW_USER: ${{ vars.SERVER_USER || secrets.SERVER_USER }}
+          RAW_PORT: ${{ vars.SERVER_PORT || secrets.SERVER_PORT }}
+          HAS_KEY: ${{ secrets.SERVER_KEY != '' }}
+        run: |
+          host="$(printf '%s' "$RAW_HOST" | tr -d '[:space:]')"
+          user="$(printf '%s' "$RAW_USER" | tr -d '[:space:]')"
+          port="$(printf '%s' "$RAW_PORT" | tr -d '[:space:]')"
+          [ -z "$port" ] && port=22
+
+          if [ -z "$host" ] || [ -z "$user" ] || [ "$HAS_KEY" != "true" ]; then
+            echo "::error::SSH deploy is missing SERVER_IP, SERVER_USER, or SERVER_KEY."
+            echo "GitHub → Settings → Secrets and variables → Actions"
+            echo "  Variable or secret: SERVER_IP (hostname or IP)"
+            echo "  Variable or secret: SERVER_USER"
+            echo "  Secret: SERVER_KEY (private key contents)"
+            echo "  Optional secret: SERVER_PORT (defaults to 22), SSH_PASSPHRASE"
+            exit 1
+          fi
+
+          {
+            echo "SSH_HOST=$host"
+            echo "SSH_USER=$user"
+            echo "SSH_PORT=$port"
+          } >> "$GITHUB_ENV"
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          port: ${{ secrets.SERVER_PORT }}
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          port: ${{ env.SSH_PORT }}
           key: ${{ secrets.SERVER_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script_stop: true

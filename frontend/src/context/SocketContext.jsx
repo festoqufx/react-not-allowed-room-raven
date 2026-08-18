@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
-import { SOCKET_URL } from '../lib/config';
+import { SOCKET_URL, getBackendUrl } from '../lib/config';
 
 const SocketContext = createContext();
 
@@ -10,8 +10,13 @@ export const SocketProvider = ({ children }) => {
   const { token } = useAuth();
 
   useEffect(() => {
-    // Same-origin by default so the Vite/nginx proxy can forward websocket traffic.
-    const newSocket = io(SOCKET_URL || undefined, {
+    const backendUrl = getBackendUrl();
+    if (!backendUrl && !import.meta.env.DEV) {
+      setSocket(null);
+      return undefined;
+    }
+
+    const newSocket = io(SOCKET_URL || backendUrl || undefined, {
       auth: { token },
       path: '/socket.io',
       transports: ['websocket', 'polling'],

@@ -12,6 +12,7 @@ import VerifyEmail from './pages/VerifyEmail';
 import Home from './pages/Home';
 import ChatRoom from './pages/ChatRoom';
 import NarChatbot from './components/NarChatbot';
+import ApiSetupBanner from './components/ApiSetupBanner';
 
 const ProtectedRoute = ({ children, allowGuest = false }) => {
   const { token, loading } = useAuth();
@@ -44,6 +45,7 @@ const App = () => {
           <SocketProvider>
             <div className="app-shell">
               <a className="skip-link" href="#main">Skip to content</a>
+              <ApiSetupBanner />
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />

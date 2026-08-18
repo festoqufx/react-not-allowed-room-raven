@@ -33,6 +33,8 @@ Vite inlines this value at **build** time. For Vercel, set `VITE_BACKEND_URL` in
 - Deploy from the repo root (root `vercel.json` builds this folder) **or** set Root Directory to `frontend`.
 - Framework: Vite. Output: `dist`.
 - SPA routes rewrite to `index.html`.
-- Set `VITE_BACKEND_URL` before the first production build.
+- Set **`VITE_BACKEND_URL`** (or `BACKEND_ORIGIN`) to your public API origin **before** building. Example: `https://api.example.com` with no trailing slash.
+- Also set the API `FRONT_CORS` to include `https://react-not-allowed-room-raven.vercel.app`.
+- Camera and calls only start after the frontend can reach that API.
 
 Do not add an `/api` rewrite to a remote host. The previous sslip.io proxy broke deploys; the client now uses the backend origin directly.

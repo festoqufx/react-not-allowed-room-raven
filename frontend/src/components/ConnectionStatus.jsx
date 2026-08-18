@@ -28,7 +28,7 @@ const ConnectionStatus = () => {
 
   if (!isApiConfigured) {
     return (
-      <div className="connection-status offline" role="status">
+      <div className="connection-status offline" role="status" title="Set VITE_BACKEND_URL in Vercel, then redeploy">
         <span className="connection-dot" />
         API not configured
       </div>

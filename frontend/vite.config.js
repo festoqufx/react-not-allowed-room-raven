@@ -3,8 +3,37 @@ import react from '@vitejs/plugin-react'
 
 const API_ORIGIN = 'http://127.0.0.1:9000'
 
+const resolveBackendOrigin = () => (
+  String(
+    process.env.VITE_BACKEND_URL ||
+    process.env.BACKEND_ORIGIN ||
+    process.env.VITE_API_URL ||
+    ''
+  ).replace(/\/$/, '')
+)
+
+const narBackendPlugin = () => ({
+  name: 'nar-backend-origin',
+  config() {
+    const origin = resolveBackendOrigin()
+    if (!origin) return undefined
+    return {
+      define: {
+        'import.meta.env.VITE_BACKEND_URL': JSON.stringify(origin),
+      },
+    }
+  },
+  transformIndexHtml(html) {
+    const origin = resolveBackendOrigin()
+    return html.replace(
+      '</head>',
+      `<script>window.__NAR_CONFIG__={backendUrl:${JSON.stringify(origin)}};</script>\n</head>`
+    )
+  },
+})
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), narBackendPlugin()],
   server: {
     host: true,
     port: 5173,
