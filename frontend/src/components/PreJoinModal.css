@@ -1,0 +1,234 @@
+.prejoin-container {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.prejoin-card {
+  max-width: 900px;
+  width: 100%;
+  padding: 32px;
+}
+
+.prejoin-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 520px) minmax(260px, 1fr);
+  align-items: center;
+  gap: 40px;
+}
+
+.preview-wrapper {
+  aspect-ratio: 4/3;
+  width: 100%;
+  background: #111;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: var(--glass-shadow);
+  border: 1px solid var(--glass-border);
+}
+
+.preview-video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center;
+  background: #111;
+}
+
+.preview-avatar-wrap {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
+}
+
+.preview-avatar {
+  width: 100px;
+  height: 100px;
+  font-size: 2.5rem;
+}
+
+.preview-status {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  text-align: center;
+  background: rgba(8, 8, 8, 0.82);
+  color: #fff;
+}
+
+.preview-status strong {
+  font-size: 0.95rem;
+}
+
+.preview-status span {
+  max-width: 260px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #d4d4d4;
+}
+
+.preview-spinner {
+  width: 26px;
+  height: 26px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: preview-spin 0.8s linear infinite;
+}
+
+@keyframes preview-spin {
+  to { transform: rotate(360deg); }
+}
+
+.preview-retry {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
+  color: #111;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.preview-overlay {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  z-index: 5;
+}
+
+.media-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.media-btn.on {
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(8px);
+}
+
+.media-btn.off {
+  background: #111;
+}
+
+.prejoin-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.prejoin-info h1 {
+  font-size: 2.2rem;
+  margin-bottom: 8px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+@media (max-width: 768px) {
+  .prejoin-container {
+    align-items: flex-start;
+    padding-top: max(18px, env(safe-area-inset-top));
+  }
+
+  .prejoin-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .prejoin-card {
+    padding: 20px;
+    margin: 10px 0;
+    max-width: 430px;
+  }
+
+  .preview-wrapper {
+    width: min(100%, 340px);
+    aspect-ratio: 3/4;
+    margin: 0 auto;
+  }
+  
+  .prejoin-info h1 {
+    font-size: 1.6rem;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  
+  .prejoin-info p {
+    text-align: center;
+    font-size: 0.85rem;
+    margin-bottom: 20px !important;
+  }
+  
+  .prejoin-info .btn {
+    width: 100%;
+    padding: 14px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .prejoin-container {
+    padding: max(14px, env(safe-area-inset-top)) 14px 18px;
+  }
+
+  .prejoin-card {
+    padding: 16px;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    margin: 0;
+  }
+  
+  .preview-wrapper {
+    width: min(100%, 320px);
+    border-radius: 12px;
+  }
+
+  .prejoin-info h1 {
+    font-size: 1.4rem;
+  }
+}
+
+@media (max-height: 700px) and (max-width: 768px) {
+  .preview-wrapper {
+    width: min(100%, 300px);
+    aspect-ratio: 1/1;
+  }
+  .prejoin-info p {
+    display: none;
+  }
+  .prejoin-info h1 {
+    margin-top: 10px;
+  }
+}
